@@ -1,0 +1,6 @@
+transformers>=4.40
+datasets>=2.18
+accelerate>=0.30
+sentencepiece>=0.1.99
+numpy
+tqdm

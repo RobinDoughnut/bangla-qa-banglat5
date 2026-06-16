@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Train BanglaT5",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/train.py",
+      "console": "integratedTerminal",
+      "env": {
+        "HF_HOME": "${workspaceFolder}/data"
+      },
+      "python": "${workspaceFolder}/.venv/bin/python"
+    },
+    {
+      "name": "Evaluate BanglaT5",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/evaluate_model.py",
+      "console": "integratedTerminal",
+      "env": {
+        "HF_HOME": "${workspaceFolder}/data"
+      },
+      "python": "${workspaceFolder}/.venv/bin/python"
+    }
+  ]
+}
