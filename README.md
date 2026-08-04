@@ -2,7 +2,15 @@
 
 Fine-tuning [`csebuetnlp/banglat5`](https://huggingface.co/csebuetnlp/banglat5) for extractive question answering on the Bangla SQuAD dataset ([csebuetnlp/squad_bn](https://huggingface.co/datasets/csebuetnlp/squad_bn)). Evaluated using Exact Match (EM) and F1 score.
 
-This is a companion experiment to [bangla-qa-mbert](../bangla-qa-mbert), using a Bangla-specific T5 model instead of multilingual BERT.
+## Related Experiments
+
+Part of a 3-way comparison of QA architectures on Bangla SQuAD:
+
+| Repo | Model | Architecture |
+|------|-------|--------------|
+| **bangla-qa-banglat5** (this repo) | BanglaT5 | Encoder-Decoder, Bangla-pretrained |
+| [bangla-t5-finetune-qa](https://github.com/RobinDoughnut/bangla-t5-finetune-qa) | T5-base | Encoder-Decoder, English-pretrained |
+| [mbert-finetune-banglaSQUAD](https://github.com/RobinDoughnut/mbert-finetune-banglaSQUAD) | mBERT | Encoder-only, span extraction |
 
 ## Approach
 
