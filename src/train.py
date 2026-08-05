@@ -1,4 +1,5 @@
 import json
+import time
 import torch
 from pathlib import Path
 from transformers import (
@@ -7,6 +8,7 @@ from transformers import (
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
     DataCollatorForSeq2Seq,
+    TrainerCallback,
 )
 from datasets import Dataset
 
@@ -15,9 +17,29 @@ DATA_DIR = Path("data/squad_bn")
 OUTPUT_DIR = Path("outputs/model")
 MAX_INPUT_LENGTH = 512
 MAX_TARGET_LENGTH = 64
-BATCH_SIZE = 16
+BATCH_SIZE = 4
+GRAD_ACCUM_STEPS = 4  # effective batch size stays 16
 EPOCHS = 3
 LEARNING_RATE = 3e-5
+
+
+class EpochTimer(TrainerCallback):
+    def on_epoch_begin(self, args, state, control, **kwargs):
+        self._t0 = time.time()
+
+    def on_epoch_end(self, args, state, control, **kwargs):
+        elapsed = time.time() - self._t0
+        epoch = int(state.epoch)
+        print(f"\n  Epoch {epoch} time: {elapsed/60:.1f} min ({elapsed:.0f} s)")
+
+
+def print_model_stats(model):
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in model.parameters())
+    size_mb = sum(p.numel() * p.element_size() for p in model.parameters()) / 1024 ** 2
+    print(f"  Trainable params : {trainable:,}")
+    print(f"  Total params     : {total:,}")
+    print(f"  Model size (fp32): {size_mb:.1f} MB")
 
 
 def load_squad_json(path):
@@ -78,6 +100,9 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
 
+    print("Model stats:")
+    print_model_stats(model)
+
     print("Loading data...")
     train_ds = load_squad_json(DATA_DIR / "train.json")
     val_ds = load_squad_json(DATA_DIR / "validation.json")
@@ -97,12 +122,15 @@ def main():
         desc="val",
     )
 
-    use_fp16 = torch.cuda.is_available()
+    use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     args = Seq2SeqTrainingArguments(
         output_dir=str(OUTPUT_DIR / "checkpoints"),
         num_train_epochs=EPOCHS,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
+        gradient_accumulation_steps=GRAD_ACCUM_STEPS,
+        gradient_checkpointing=True,
+        optim="adafactor",
         learning_rate=LEARNING_RATE,
         weight_decay=0.01,
         warmup_ratio=0.1,
@@ -112,7 +140,7 @@ def main():
         metric_for_best_model="eval_loss",
         predict_with_generate=True,
         generation_max_length=MAX_TARGET_LENGTH,
-        fp16=use_fp16,
+        bf16=use_bf16,
         report_to="none",
         logging_steps=200,
     )
@@ -126,6 +154,7 @@ def main():
         eval_dataset=val_features,
         processing_class=tokenizer,
         data_collator=data_collator,
+        callbacks=[EpochTimer()],
     )
 
     print("Training...")

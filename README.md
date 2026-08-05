@@ -27,9 +27,9 @@ Unlike mBERT which predicts answer span positions (start/end tokens), BanglaT5 i
 
 | Split | Examples |
 |-------|----------|
-| Train | ~68,000 |
-| Validation | ~1,250 |
-| Test | ~1,250 |
+| Train | 68,674 |
+| Validation | 1,251 |
+| Test | 1,252 |
 
 (Unanswerable questions are excluded.)
 
@@ -81,12 +81,15 @@ Saves the best checkpoint to `outputs/model/best/`.
 | Base model | `csebuetnlp/banglat5` |
 | Max input length | 512 tokens |
 | Max target length | 64 tokens |
-| Batch size | 16 |
+| Batch size (per device) | 4 |
+| Gradient accumulation steps | 4 (effective batch = 16) |
 | Epochs | 3 |
 | Learning rate | 3e-5 |
 | Weight decay | 0.01 |
 | Warmup ratio | 0.1 |
-| Mixed precision (fp16) | Auto (enabled if CUDA available) |
+| Optimizer | Adafactor |
+| Mixed precision | bf16 (if supported) |
+| Gradient checkpointing | Yes |
 
 ## Evaluation
 
@@ -94,7 +97,32 @@ Saves the best checkpoint to `outputs/model/best/`.
 python src/evaluate_model.py
 ```
 
-Generates predictions with beam search (4 beams) and reports EM and F1 on validation and test splits.
+Generates predictions with beam search (4 beams) and reports EM, F1, and BERTScore-F1 on validation and test splits.
+
+## Results
+
+**Model stats:**
+
+| Metric | Value |
+|--------|-------|
+| Trainable parameters | 247,577,856 |
+| Total parameters | 247,577,856 |
+| Model size (fp32) | 944.4 MB |
+
+**Training** (RTX 4070, effective batch size 16):
+
+| Epoch | Eval loss | Time |
+|-------|-----------|------|
+| 1 | 0.9986 | 30.9 min |
+| 2 | 0.8223 | 30.9 min |
+| 3 | 0.8003 | 30.8 min |
+
+**Evaluation** (BERTScore-F1 uses `bert-base-multilingual-cased`, unrescaled, max over gold references):
+
+| Split | EM | F1 | BERTScore-F1 | N |
+|-------|-----|-----|--------------|-------|
+| Validation | 54.92 | 68.34 | 91.16 | 1,251 |
+| Test | 53.19 | 67.90 | 91.10 | 1,252 |
 
 ## Project Structure
 

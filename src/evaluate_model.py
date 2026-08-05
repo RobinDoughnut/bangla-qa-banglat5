@@ -7,6 +7,19 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from datasets import Dataset
 from tqdm import tqdm
+from bert_score import score as bert_score_fn
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
+
+if not hasattr(PreTrainedTokenizerBase, "build_inputs_with_special_tokens"):
+    # bert_score's sent_encode() relies on this method, which newer
+    # transformers releases dropped from the tokenizer base class.
+    def _build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None):
+        cls_id, sep_id = self.cls_token_id, self.sep_token_id
+        if token_ids_1 is None:
+            return [cls_id] + token_ids_0 + [sep_id]
+        return [cls_id] + token_ids_0 + [sep_id] + token_ids_1 + [sep_id]
+
+    PreTrainedTokenizerBase.build_inputs_with_special_tokens = _build_inputs_with_special_tokens
 
 MODEL_PATH = Path("outputs/model/best")
 DATA_DIR = Path("data/squad_bn")
@@ -14,6 +27,7 @@ MAX_INPUT_LENGTH = 512
 MAX_TARGET_LENGTH = 64
 BATCH_SIZE = 16
 NUM_BEAMS = 4
+BERTSCORE_MODEL = "bert-base-multilingual-cased"  # Bangla text needs a multilingual model
 
 
 def load_squad_json(path):
@@ -100,12 +114,27 @@ def compute_metrics(predictions, dataset):
     return {"EM": 100 * em_total / n, "F1": 100 * f1_total / n, "N": n}
 
 
+def compute_bertscore(predictions, dataset, device):
+    # bert_score takes the max F1 across all gold references per example
+    refs = [ex["answers"]["text"] for ex in dataset]
+    _, _, f1 = bert_score_fn(
+        predictions,
+        refs,
+        model_type=BERTSCORE_MODEL,
+        rescale_with_baseline=False,
+        verbose=False,
+        device=device,
+    )
+    return 100 * float(f1.mean())
+
+
 def evaluate_split(split, tokenizer, model, device):
     print(f"\n=== {split} ===")
     ds = load_squad_json(DATA_DIR / f"{split}.json")
     preds = generate_predictions(model, tokenizer, ds, device)
     metrics = compute_metrics(preds, ds)
-    print(f"  EM: {metrics['EM']:.2f}  F1: {metrics['F1']:.2f}  (N={metrics['N']:,})")
+    metrics["BERTScore-F1"] = compute_bertscore(preds, ds, device)
+    print(f"  EM: {metrics['EM']:.2f}  F1: {metrics['F1']:.2f}  BERTScore-F1: {metrics['BERTScore-F1']:.2f}  (N={metrics['N']:,})")
     return metrics
 
 
