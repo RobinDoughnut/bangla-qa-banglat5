@@ -4,11 +4,12 @@ Fine-tuning [`csebuetnlp/banglat5`](https://huggingface.co/csebuetnlp/banglat5) 
 
 ## Related Experiments
 
-Part of a 3-way comparison of QA architectures on Bangla SQuAD:
+Part of a 4-way comparison of QA architectures on Bangla SQuAD:
 
 | Repo | Model | Architecture |
 |------|-------|--------------|
 | **bangla-qa-banglat5** (this repo) | BanglaT5 | Encoder-Decoder, Bangla-pretrained |
+| [bangla-qa-mt5](https://github.com/RobinDoughnut/bangla-qa-mt5) | mT5-base | Encoder-Decoder, multilingual-pretrained |
 | [bangla-t5-finetune-qa](https://github.com/RobinDoughnut/bangla-t5-finetune-qa) | T5-base | Encoder-Decoder, English-pretrained |
 | [mbert-finetune-banglaSQUAD](https://github.com/RobinDoughnut/mbert-finetune-banglaSQUAD) | mBERT | Encoder-only, span extraction |
 
