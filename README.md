@@ -125,6 +125,16 @@ Generates predictions with beam search (4 beams) and reports EM, F1, and BERTSco
 | Validation | 54.92 | 68.34 | 91.16 | 1,251 |
 | Test | 53.19 | 67.90 | 91.10 | 1,252 |
 
+Best of the four experiments, though only narrowly ahead of [mBERT](https://github.com/RobinDoughnut/mbert-finetune-banglaSQUAD) (52.24 EM on test) — see Limitations before reading that as a ranking.
+
+## Limitations
+
+**The lead over mBERT is within noise.** These results come from a single training run at a single seed, and none of the four experiments measure seed-to-seed variance. The 0.95 EM / 2.03 F1 margin over mBERT on test amounts to about 12 questions out of 1,252. Dedicated Bangla pretraining is not demonstrated here to be categorically better than general multilingual pretraining — the defensible claim is that both clearly beat [mT5-base](https://github.com/RobinDoughnut/bangla-qa-mt5) (38.10 EM) and that Bangla-script vocabulary coverage is what separates working models from [T5-base](https://github.com/RobinDoughnut/bangla-t5-finetune-qa)'s 0.00.
+
+**Fixed 3-epoch budget.** Shared across all four experiments to keep the comparison controlled, but it means no model is shown at its own optimum.
+
+**Dataset caveat.** In `csebuetnlp/squad_bn`, 13.3% of validation and 13.6% of test rows have an `answer_start` pointer 1–5 characters too large. The gold text is intact and the train split is clean, so neither training nor the text-based metrics above are affected; see the [mT5 repo](https://github.com/RobinDoughnut/bangla-qa-mt5#limitations) for the full breakdown.
+
 ## Project Structure
 
 ```
