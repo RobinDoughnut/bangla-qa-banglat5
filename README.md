@@ -34,6 +34,49 @@ Unlike mBERT which predicts answer span positions (start/end tokens), BanglaT5 i
 
 (Unanswerable questions are excluded.)
 
+## Data Preprocessing & Text Representation
+
+Documented here for citation purposes.
+
+**Preprocessing pipeline** (`src/prepare_data.py`, `src/train.py:load_squad_json`):
+
+1. **Source**: `csebuetnlp/squad_bn` (Bangla SQuAD), loaded via the HuggingFace `datasets` library.
+2. **Re-grouping**: the raw dataset is flat (one row per question-context pair, with the context
+   string repeated for every question that shares it). Rows are re-grouped into SQuAD's canonical
+   `{title: [{context, qas: [...]}]}` nested structure so each unique context appears once.
+3. **Unanswerable-question filtering**: rows with an empty `answers` list are dropped. This is what
+   shrinks the raw split sizes -- 118,117 / 2,502 / 2,504 train/validation/test in the current
+   dataset snapshot -- down to 68,674 / 1,251 / 1,252, the sizes reported under Dataset above.
+4. **Target answer selection**: `squad_bn` provides multiple human-annotated gold answer spans for
+   some questions. Training uses only the first (`answers.text[0]`) as the target sequence `y`; at
+   evaluation time all gold answers are retained, and EM/F1/BERTScore are computed against every
+   gold answer with the maximum taken per example (standard SQuAD protocol).
+5. **Prompt construction** (text-to-text framing, no task-specific output head):
+   `"question: {question} context: {context}"` -> target: answer text.
+6. **No text normalization** (lowercasing, punctuation stripping, diacritic folding) is applied
+   before tokenization -- raw Bangla UTF-8 text is passed directly into the model's subword
+   tokenizer.
+7. **Truncation/padding**: input sequences truncated to 512 subword tokens, targets to 64; batches
+   are dynamically padded per-batch (`DataCollatorForSeq2Seq`), and label padding positions are
+   masked with `-100` so they don't contribute to the cross-entropy loss.
+
+**Text embedding**:
+
+- Tokenizer: SentencePiece unigram-model subword tokenizer (`T5Tokenizer`), operating directly on
+  raw text -- distinct from the whitespace-then-WordPiece pipeline BERT-family models use, which
+  matters for Bangla since it doesn't reliably space-delimit at the "word" level the way English
+  does.
+- Vocabulary: 32,128 subword tokens, trained on a Bangla-only corpus.
+- Embedding dimension (`d_model`): 768, across 12 encoder + 12 decoder layers.
+- A single learned embedding matrix (`vocab_size x d_model`) maps token ids to dense vectors. In
+  the standard pretrained config (`tie_word_embeddings=True`) this matrix is **tied**: the same
+  weights are reused for the encoder input embedding, the decoder input embedding, and the output
+  (LM head) projection, rather than three independently-learned matrices.
+- Positional information is **not** injected via absolute or sinusoidal position embeddings added
+  to the token embedding (unlike BERT-family models). Instead, T5-family models add a learned
+  **relative position bias** directly to the attention logits at every layer, bucketed by relative
+  token distance (`relative_attention_num_buckets=32`, `relative_attention_max_distance=128`).
+
 ## Requirements
 
 - Python 3.10+
